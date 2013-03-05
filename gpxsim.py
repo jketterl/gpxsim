@@ -4,7 +4,7 @@ Created on Mar 4, 2013
 @author: jketterl
 '''
 
-import libxml2, datetime, time
+import libxml2, datetime, time, re
 import gps.fake as gpsfake
 
 class GPXTestload(gpsfake.TestLoad):
@@ -51,19 +51,24 @@ class GPXTestload(gpsfake.TestLoad):
                 
             self.sentences.append('$%s*%x\n' % (msg, checksum))
 
-    def feed(self):
-        print "feed called"
-        super(GPXTestload, self).feed()
-
 if __name__ == '__main__':
     gpx = "2011-07-25 1955__20110725_1955.gpx"
     testload = GPXTestload(gpx)
+
+    timeRegex = re.compile('^\$(GPRMC|GPGGA),([0-9]{6})')
     
     def progress(line):
-        print line
-        
+        pass
+
+    lastTime = None
+
     def predicate(x, y):
-        time.sleep(1)
+	nmea = testload.sentences[x]
+        now = int(timeRegex.match(nmea).group(2))
+	global lastTime
+	if lastTime is not None:
+        	time.sleep(min(5, now - lastTime))
+	lastTime = now
         return True
     
     gps = gpsfake.FakePTY(testload, progress=progress)
@@ -79,5 +84,3 @@ if __name__ == '__main__':
     session.daemon.add_device(gps.byname)
     
     session.run()
-    
-    print "end"
